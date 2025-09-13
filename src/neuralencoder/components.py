@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import jax
 import equinox as eqx
+import jax.numpy as jnp
 from foundational_ssm.models.s5 import discretize_zoh
 
 
