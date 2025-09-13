@@ -36,6 +36,19 @@ from nbit.training import ContinuousRNN, generate_batch, eval_rnn, eval_rnn_mult
 if 'google.colab' in sys.modules:
     pio.renderers.default = 'colab'
 
+    
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+
+# Hyperparameters
+N = 100  # number of RNN units
+dt = 0.15  # time step
+T_train = 300  # shorter training sequence length
+T_eval = 1000  # evaluation sequence length
+#n_bits = 3  # 3-bit memory
+pulse_prob = 0.01  # probability of pulse per bit per timestep
+noise_std = 0.015  # standard deviation of noise added to hidden state during training
+
 
 def get_perimeter_input(transitions=None, T_per=300, pulse_width=5, pulse_offset=50, T_buffer=100, n_bits=2, device=device):
     assert n_bits == 2, 'Only 2-bit states supported.'
