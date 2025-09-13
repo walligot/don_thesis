@@ -8,7 +8,26 @@ Any direct references to Colab paths have been annotated.
 NOTE: If you see '/content/drive  # REPLACE WITH YOUR OWN FOLDER' references, adjust paths for your environment.
 """
 from __future__ import annotations
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+from sklearn.decomposition import PCA
+import numpy as np
+import copy
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+
+# Hyperparameters
+N = 100  # number of RNN units
+dt = 0.15  # time step
+T_train = 300  # shorter training sequence length
+T_eval = 1000  # evaluation sequence length
+#n_bits = 3  # 3-bit memory
+pulse_prob = 0.01  # probability of pulse per bit per timestep
+noise_std = 0.015  # standard deviation of noise added to hidden state during training
 
 def train_rnn(n_bits, n_epochs=4000, batch_size=32, eval_batch_size=100):
     rnn = ContinuousRNN(N, n_bits)
