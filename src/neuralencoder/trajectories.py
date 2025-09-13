@@ -17,6 +17,9 @@ import jax
 from tqdm import tqdm
 import gzip
 import pickle
+import seaborn as sns
+from sklearn.manifold import TSNE
+import re
 
 # map: dataset_idx -> (dataset_name, subject, task)
 from foundational_ssm.constants import DATASET_IDX_TO_GROUP, DATASET_IDX_TO_GROUP_SHORT
