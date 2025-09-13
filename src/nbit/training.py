@@ -29,6 +29,115 @@ T_eval = 1000  # evaluation sequence length
 pulse_prob = 0.01  # probability of pulse per bit per timestep
 noise_std = 0.015  # standard deviation of noise added to hidden state during training
 
+# Define the RNN dynamics class
+class ContinuousRNN(nn.Module):
+    def __init__(self, N, n_bits, device=device):
+        super(ContinuousRNN, self).__init__()
+        self.device = device or torch.device('cpu')
+        self.N = N
+        self.n_bits = n_bits
+        self.input_weights = nn.Parameter(torch.randn(N, n_bits) * 0.1)
+        self.recurrent_weights = nn.Parameter(torch.randn(N, N) * 0.1 * 1.0)
+        self.output_weights = nn.Parameter(torch.randn(n_bits, N) * 0.1)
+        self.nonlinearity = torch.tanh
+        self.to(self.device)
+
+    def forward(self, inputs, return_h=False, add_noise=False):
+      # Move inputs to self.device if not already
+        if inputs.device != self.device:
+            inputs = inputs.to(self.device)
+
+        if not (isinstance(add_noise, (bool, torch.Tensor))):
+          raise TypeError("add_noise must be either a bool or a torch.Tensor")
+
+        is_noise_vector = isinstance(add_noise, torch.Tensor)
+
+        batch_size, seq_len, _ = inputs.shape
+        h = torch.zeros(batch_size, self.N, device=self.device)
+        outputs = []
+        hidden_states = []
+
+        #print(self.device)
+        #print(self.input_weights.device)
+        #print(self.recurrent_weights.device)
+        #print(self.output_weights.device)
+        #print(inputs.device)
+        #print(h.device)
+
+        for t in range(seq_len):
+            input_t = inputs[:, t, :]
+            dh = (-h + self.nonlinearity(
+                torch.matmul(h, self.recurrent_weights.T) + torch.matmul(input_t, self.input_weights.T)
+            )) * dt
+            #print(f"inputs shape {inputs.shape}")
+            #print(f"input_t shape {input_t.shape}")
+            #print(f"h shape {h.shape}")
+            #print(f"dh shape {dh.shape}")
+
+            if is_noise_vector:
+                add_noise = add_noise.to(self.device)
+                if (add_noise.shape[0] < inputs.shape[0] or
+                    add_noise.shape[1] < inputs.shape[1] or
+                    add_noise.shape[2] < self.N):
+                    raise ValueError(
+                        f"add_noise shape {add_noise.shape} must have batch and time dimensions "
+                        f"at least as large as inputs {inputs.shape} and at least {self.N} channels"
+                    )
+
+                # Slice noise to match input batch size and time step t
+                noise_t = add_noise[:inputs.shape[0], t, :self.N]
+            elif add_noise is True:
+                noise_t = torch.randn_like(dh)
+            else:
+                noise_t = torch.zeros_like(dh)
+
+            #scale = noise_std*dh.norm(dim=1, keepdim=True)
+            scale=noise_std
+            #print(f"noise_t shape {noise_t.shape}")
+            dh += noise_t * scale
+            h = h + dh
+
+            out = torch.matmul(h, self.output_weights.T)
+            outputs.append(out)
+            hidden_states.append(h)
+
+        outputs = torch.stack(outputs, dim=1)
+        hidden_states = torch.stack(hidden_states, dim=1)
+
+        if return_h:
+            return outputs, hidden_states
+        else:
+            return outputs
+
+def generate_batch(batch_size, T, n_bits, pulse_prob, device='cpu'):
+    inputs = torch.zeros(batch_size, T, n_bits, device=device)
+    targets = torch.zeros(batch_size, T, n_bits, device=device)
+
+    # Current state per bit per sample
+    current_input = torch.zeros(batch_size, n_bits, device=device)
+    memory = torch.zeros(batch_size, n_bits, device=device)
+
+    for t in range(T):
+        # Decide which bits start a new pulse
+        start_mask = (current_input == 0) & (torch.rand(batch_size, n_bits, device=device) < pulse_prob)
+
+        # Random ±1 for new pulses
+        new_pulses = (torch.randint(0, 2, (batch_size, n_bits), device=device) * 2 - 1).float()
+
+        # Apply new pulses
+        current_input[start_mask] = new_pulses[start_mask]
+        memory[start_mask] = current_input[start_mask]  # update memory only on new pulses
+
+        # Decide which bits return to 0
+        stop_mask = (current_input != 0) & (torch.rand(batch_size, n_bits, device=device) < 0.05)
+        current_input[stop_mask] = 0.0
+
+        # Store values
+        inputs[:, t, :] = current_input
+        targets[:, t, :] = memory
+
+    return inputs, targets
+
 def train_rnn(n_bits, n_epochs=4000, batch_size=32, eval_batch_size=100):
     rnn = ContinuousRNN(N, n_bits)
     optimizer = optim.Adam(rnn.parameters(), weight_decay=0.0001)
