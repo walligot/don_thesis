@@ -1,6 +1,6 @@
 # Mechanistic Interpretations of Multi-Block State Space Models
 
-This repository accompanies David O'Neill's MSc thesis for **Computational Statistics and Machine Learning** at UCL (2025).  
+This repository accompanies David O'Neill's masters thesis undertaken at the Gatsby Institute, for **MSc Computational Statistics and Machine Learning** at UCL (2025).  
 It explores how **similarity metrics** and **linear algebraic tools** can be used to move beyond black-box evaluation and reveal the internal dynamics of artificial and biological neural networks.  
 
 ---
